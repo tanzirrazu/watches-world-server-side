@@ -16,18 +16,39 @@ async function run() {
     await client.connect();
     const database = await client.db("watches_world");
     const reviewCollection = database.collection("reviews");
+    const productsCollection = database.collection("products");
 
-    // post testimonial
+    // post rating
     app.post("/addrating", async (req, res) => {
       const testimonial = req.body;
       const result = await reviewCollection.insertOne(testimonial);
       res.json(result);
     });
-    // get testimonial
+    // post products
+    app.post("/addproducts", async (req, res) => {
+      const products = req.body;
+      const sends = await productsCollection.insertOne(products);
+      res.json(sends);
+    });
+    // get rating
     app.get("/addrating", async (req, res) => {
       const ratingget = reviewCollection.find({});
       const gets = await ratingget.toArray();
-      res.send(gets);
+      res.json(gets);
+    });
+    // get limit products
+    app.get("/addproducts", async (req, res) => {
+      const products = productsCollection.find().limit(6);
+      const recive = await products.toArray();
+      res.send(recive);
+      res.json(recive);
+    });
+    // get all products
+    app.get("/allproducts", async (req, res) => {
+      const products = productsCollection.find({});
+      const recive = await products.toArray();
+      res.send(recive);
+      res.json(recive);
     });
   } finally {
     // await client.close();
