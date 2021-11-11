@@ -19,6 +19,7 @@ async function run() {
     const reviewCollection = database.collection("reviews");
     const productsCollection = database.collection("products");
     const orderCollection = database.collection("orders");
+    const userCollection = database.collection("users");
 
     // post rating
     app.post("/addrating", async (req, res) => {
@@ -32,6 +33,41 @@ async function run() {
       const sends = await productsCollection.insertOne(products);
       res.json(sends);
     });
+    // post users
+    app.post("/users", async (req, res) => {
+      const user = req.body;
+      const result = await userCollection.insertOne(user);
+      res.json(result);
+    });
+    // upsert data for google sign in
+    app.put("/users", async (req, res) => {
+      const user = req.body;
+      const filter = { email: user.email };
+      const options = { upsert: true };
+      const updateDoc = { $set: user };
+      const result = await userCollection.updateOne(filter, updateDoc, options);
+      res.json(result);
+    });
+    // make admin
+    app.put("/users/admin", async (req, res) => {
+      const user = req.body;
+      const filter = { email: user.email };
+      const updateDoc = { $set: { role: "admin" } };
+      const result = await userCollection.updateOne(filter, updateDoc);
+      res.json(result);
+    });
+    // get admin role
+    app.get("/users/:email", async (req, res) => {
+      const email = req.params.email;
+      const query = { email: email };
+      const user = await userCollection.findOne(query);
+      let isAdmin = false;
+      if (user?.role === "admin") {
+        isAdmin = true;
+      }
+      res.json({ admin: isAdmin });
+    });
+
     // get rating
     app.get("/addrating", async (req, res) => {
       const ratingget = reviewCollection.find({});
@@ -64,6 +100,12 @@ async function run() {
       console.log(orders);
       res.send(orders);
     });
+    // get all orders
+    app.get("/allOrders", async (req, res) => {
+      const order = orderCollection.find({});
+      const orders = await order.toArray();
+      res.send(orders);
+    });
     // get myOrders
     app.get("/myOrders/:email", async (req, res) => {
       const result = await orderCollection
@@ -77,6 +119,13 @@ async function run() {
       const query = { _id: ObjectId(id) };
       const result = await orderCollection.deleteOne(query);
 
+      res.send(result);
+    });
+    // delete all Orders
+    app.delete("/allOrders/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await orderCollection.deleteOne(query);
       res.send(result);
     });
   } finally {
