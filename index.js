@@ -4,6 +4,7 @@ const ObjectId = require("mongodb").ObjectId;
 const cors = require("cors");
 require("dotenv").config();
 const app = express();
+
 const port = process.env.PORT || 5000;
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.tgypl.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
@@ -20,7 +21,6 @@ async function run() {
     const productsCollection = database.collection("products");
     const orderCollection = database.collection("orders");
     const userCollection = database.collection("users");
-
     // post rating
     app.post("/addrating", async (req, res) => {
       const testimonial = req.body;
@@ -113,6 +113,16 @@ async function run() {
       const orders = await order.toArray();
       res.send(orders);
     });
+    // update orders status
+    app.put("/updateStatus/:id", async (req, res) => {
+      const id = req.params.id;
+      const updated = req.body.status;
+      const filter = { _id: ObjectId(id) };
+      const result = await orderCollection.updateOne(filter, {
+        $set: { status: updated },
+      });
+      res.send(result);
+    });
     // get myOrders
     app.get("/myOrders/:email", async (req, res) => {
       const result = await orderCollection
@@ -139,6 +149,7 @@ async function run() {
     // await client.close();
   }
 }
+
 run().catch(console.dir);
 app.use(cors());
 app.use(express.json());
