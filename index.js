@@ -2,10 +2,16 @@ const express = require("express");
 const { MongoClient } = require("mongodb");
 const ObjectId = require("mongodb").ObjectId;
 const cors = require("cors");
-require("dotenv").config();
-const app = express();
 
+const fileupload = require("express-fileupload");
+require("dotenv").config();
+const stripe = require("stripe")(process.env.STRIPE_SECRET);
+const app = express();
 const port = process.env.PORT || 5000;
+
+app.use(cors());
+app.use(express.json());
+app.use(fileupload());
 
 const uri = `mongodb+srv://${process.env.DB_USER}:${process.env.DB_PASS}@cluster0.tgypl.mongodb.net/myFirstDatabase?retryWrites=true&w=majority`;
 const client = new MongoClient(uri, {
@@ -23,15 +29,47 @@ async function run() {
     const userCollection = database.collection("users");
     // post rating
     app.post("/addrating", async (req, res) => {
-      const testimonial = req.body;
-      const result = await reviewCollection.insertOne(testimonial);
+      const fullName = req.body.fullName;
+      const rate = req.body.rate;
+      const description = req.body.description;
+      const designation = req.body.designation;
+      const pic = req.files.photurl;
+      const picData = pic.data;
+      const encodedPic = picData.toString("base64");
+      const imageBuffer = Buffer.from(encodedPic, "base64");
+      const allinfo = {
+        fullName,
+        rate,
+        description,
+        designation,
+        photurl: imageBuffer,
+      };
+      const result = await reviewCollection.insertOne(allinfo);
       res.json(result);
     });
     // post products
     app.post("/addproducts", async (req, res) => {
-      const products = req.body;
-      const sends = await productsCollection.insertOne(products);
-      res.json(sends);
+      const modelName = req.body.modelName;
+      const price = req.body.price;
+      const rate = req.body.rate;
+      const color = req.body.color;
+      const standby = req.body.standby;
+      const description = req.body.description;
+      const pic = req.files.imgUrl;
+      const picData = pic.data;
+      const encodedPic = picData.toString("base64");
+      const imageBuffer = Buffer.from(encodedPic, "base64");
+      const allInfo = {
+        modelName,
+        price,
+        rate,
+        color,
+        standby,
+        description,
+        imageUrl: imageBuffer,
+      };
+      const result = await productsCollection.insertOne(allInfo);
+      res.json(result);
     });
     // post users
     app.post("/users", async (req, res) => {
@@ -138,12 +176,43 @@ async function run() {
 
       res.send(result);
     });
+    // for payment
+    app.get("/payment/:id", async (req, res) => {
+      const id = req.params.id;
+      const query = { _id: ObjectId(id) };
+      const result = await orderCollection.findOne(query);
+      res.send(result);
+    });
     // delete all Orders
     app.delete("/allOrders/:id", async (req, res) => {
       const id = req.params.id;
       const query = { _id: ObjectId(id) };
       const result = await orderCollection.deleteOne(query);
       res.send(result);
+    });
+    // payment
+    app.post("/create-payment-intent", async (req, res) => {
+      const paymentInfo = req.body;
+      const amount = paymentInfo.price * 100;
+      const paymentIntent = await stripe.paymentIntents.create({
+        currency: "usd",
+        amount: amount,
+        payment_method_types: ["card"],
+      });
+      res.json({ clientSecret: paymentIntent.client_secret });
+    });
+    // paid
+    app.put("/allOrders/:id", async (req, res) => {
+      const id = req.params.id;
+      const payment = req.body;
+      const filter = { _id: ObjectId(id) };
+      const updateDoce = {
+        $set: {
+          payment: payment,
+        },
+      };
+      const result = await orderCollection.updateOne(filter, updateDoce);
+      res.json(result);
     });
   } finally {
     // await client.close();
